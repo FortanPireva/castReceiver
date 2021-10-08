@@ -1,5 +1,6 @@
 import hlsconfig from "../config/hlsConfig";
 import ReceiverControls from "./receiver-controls";
+import VastService from "./vastService";
 class Receiver {
   constructor(id, config) {
     this.context = null;
@@ -18,6 +19,7 @@ class Receiver {
     this.mediaManager = null;
     this.castReceiverManager = null;
     this.videoStarted = false;
+    this.vastService = new VastService(this);
   }
   start() {
     this.receiverControls.loader.style.display = "none";
@@ -76,7 +78,6 @@ class Receiver {
         if (this.currentTime > 0) this.video.currentTime = this.currentTime;
         this.hls.attachMedia(this.video);
         this.castDebugLogger.debug("attached media", this.videoObject.file);
-
         this.hls.on(Hls.Events.MEDIA_ATTACHED, () => {
           this.castDebugLogger.debug("amedia attached", this.videoObject.file);
           this.hls.startLevel = 0;
@@ -87,7 +88,7 @@ class Receiver {
           this.hls.loadSource(this.videoObject.file);
         });
         this.hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-          this.castDebugLogger.debug("manifest parsed", this.videoObject.file);
+          this.hls.currentLevel = 3;
           this.start();
         });
         this.hls.on(Hls.Events.ERROR, (event, data) => {
