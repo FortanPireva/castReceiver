@@ -15,11 +15,12 @@ class VastService {
     if (!window.google) {
       return;
     }
+    this.initialized = true;
     google.ima.settings.setVpaidMode(
       google.ima.ImaSdkSettings.VpaidMode.ENABLED
     );
 
-    this.adsDisplayContainer = new google.ima.adsDisplayContainer(
+    this.adsDisplayContainer = new google.ima.AdDisplayContainer(
       this.adContainer,
       this.receiver.video
     );
@@ -27,7 +28,7 @@ class VastService {
 
     this.adsLoader.addEventListener(
       google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
-      this.onAdsManagerLoaded,
+      this.onAdsManagerLoaded.bind(this),
       false
     );
 
@@ -52,15 +53,15 @@ class VastService {
     }
     this.currentAds.currentAdIndex = 0;
 
-    if (this.currentAds.type === "url")
-      this.load(this.currentAds.array[this.currentAds.currentAdIndex]);
-    else this.load(null, this.currentAds.array[this.currentAds.currentAdIndex]);
+    if (this.currentAds.type === "url") this.load(this.currentAds.content);
+    else this.load(null, this.currentAds.content);
   }
+  onDoubleClick(event) {}
   load(vastUrl, vastXml) {
     if (!window.google) {
       return;
     }
-
+    debugger;
     if (!this.initialized) this.init();
 
     // this.skipOffset = this.player.videoObject.ad.skipTime;
@@ -114,6 +115,7 @@ class VastService {
     try {
       this.adsManager.init(width, height, google.ima.ViewMode.FULLSCREEN);
       this.adsManager.start();
+      this.receiver.receiverControls.loader.style.display = "none";
     } catch (adError) {
       console.log("AdsManager could not be started", adError);
     }

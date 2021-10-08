@@ -173,8 +173,6 @@ class Receiver {
     // }
   }
   fakeinit() {
-    const context = cast.framework.CastReceiverContext.getInstance();
-    const playerManager = context.getPlayerManager();
     this.castDebugLogger = {
       debug: function (type, message) {
         console.debug(type, message);
@@ -183,11 +181,13 @@ class Receiver {
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
       "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/360p.mp4";
-    this.attachMedia();
+    this.vastService.loadAds(
+      "https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"
+    );
+    // this.attachMedia();
     this.bindMethods();
     // this.bindInterceptors();
     this.addPlayerEvents();
-    context.start();
   }
   init() {
     this.context = cast.framework.CastReceiverContext.getInstance();
@@ -300,7 +300,12 @@ class Receiver {
     this.currentTime = loadRequestData.currentTime;
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
-    this.attachMedia();
+    if (loadRequestData.vastUrl || loadRequestData.vastXml) {
+      this.vastService.loadAds(
+        loadRequestData.vastUrl,
+        loadRequestData.vastXml
+      );
+    } else this.attachMedia();
     return null;
     // If there is no source or a malformed ID then return an error.
     if (!source || source == "" || !source.match(ID_REGEX)) {
