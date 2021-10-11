@@ -1,4 +1,5 @@
 class VastService {
+  static DEBUG_VAST_SERVICE = "DEBUG_VAST_SERVICE";
   constructor(receiver) {
     this.receiver = receiver;
     this.adContainer = document.querySelector(".adContainer");
@@ -12,9 +13,6 @@ class VastService {
   }
 
   init() {
-    if (!window.google) {
-      return;
-    }
     this.initialized = true;
     google.ima.settings.setVpaidMode(
       google.ima.ImaSdkSettings.VpaidMode.ENABLED
@@ -40,10 +38,14 @@ class VastService {
   }
   loadAds(vastUrl, vastXml) {
     this.currentAds = {};
-    if (!window.google) return;
     if (!this.initialized) {
       this.init();
     }
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "load " + vastUrl
+    );
+
     if (vastUrl) {
       this.currentAds.content = vastUrl;
       this.currentAds.type = "url";
@@ -52,25 +54,26 @@ class VastService {
       this.currentAds.type = "xml";
     }
     this.currentAds.currentAdIndex = 0;
-
-    if (this.currentAds.type === "url") this.load(this.currentAds.content);
-    else this.load(null, this.currentAds.content);
+    this.receiver.castDebugLogger.debug(VastService.DEBUG_VAST_SERVICE);
+    if (this.currentAds.type === "url")
+      this.load(this.currentAds.content).bind(this);
+    else this.load(null, this.currentAds.content).bind(this);
   }
   onDoubleClick(event) {}
   load(vastUrl, vastXml) {
-    if (!window.google) {
-      return;
-    }
-    debugger;
     if (!this.initialized) this.init();
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "Initialized" + this.vastUrl
+    );
 
     // this.skipOffset = this.player.videoObject.ad.skipTime;
     this.adContainer.addEventListener(
       "dblclick",
       this.onDoubleClick.bind(this)
     );
-
     this.adsRequest = new google.ima.AdsRequest();
+    this.receiver.castDebugLogger.debug("okej e qity pra", "pse" + vastUrl);
 
     if (vastUrl) {
       this.adsRequest.adTagUrl = vastUrl;
@@ -79,6 +82,7 @@ class VastService {
     } else {
       return;
     }
+    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdfxx");
 
     this.adsRequest.linearAdSlotWidth = this.receiver.video.clientWidth;
     this.adsRequest.linearAdSlotHeight = this.receiver.video.clientHeight;
@@ -88,9 +92,9 @@ class VastService {
 
     this.adsRequest.setAdWillAutoPlay(this.autoplayAllowed);
     this.adsRequest.setAdWillPlayMuted(this.autoplayRequiresMuted);
+    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdf");
 
     this.adsRequest.vastLoadTimeout = 8000;
-
     this.adsLoader.requestAds(this.adsRequest);
   }
 
@@ -120,7 +124,12 @@ class VastService {
       console.log("AdsManager could not be started", adError);
     }
   }
-  onAdError() {}
+  onAdError(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " ad error" + e
+    );
+  }
 }
 
 export default VastService;

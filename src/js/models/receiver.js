@@ -20,6 +20,11 @@ class Receiver {
     this.castReceiverManager = null;
     this.videoStarted = false;
     this.vastService = new VastService(this);
+    this.config = {};
+    this.debugTags = {
+      LOAD_REQUEST: "LOAD_REQUEST",
+      ATTACH_MEDIA: "ATTACH_MEDIA",
+    };
   }
   start() {
     this.receiverControls.loader.style.display = "none";
@@ -28,6 +33,7 @@ class Receiver {
 
   onPlay() {
     // return this.playerManager.play();
+    this.castDebugLogger.debug("on play", this.video.getAttribute("src"));
     this.video
       .play()
       .then(() => {
@@ -42,12 +48,23 @@ class Receiver {
       .catch(() => {});
   }
   onPause() {
-    this.video.pause();
+    this.playerManager.pause();
     this.receiverControls.pause();
     this.receiverControls.showControls();
   }
   addPlayerEvents() {
     this.video.addEventListener("timeupdate", this.onTimeUpdate);
+    this.video.addEventListener("ended", this.onEnd.bind(this));
+  }
+  onEnd() {
+    this.castDebugLogger.debug("on End", this.config.replay);
+    if (this.config.replay) {
+      this.attachMedia();
+    } else {
+      var text = document.createElement("p");
+      text.textContent = "no more videos";
+      document.querySelector("body").append(text);
+    }
   }
   onTimeUpdate() {
     this.receiverControls.update(this.updatePlayerState());
@@ -88,7 +105,6 @@ class Receiver {
           this.hls.loadSource(this.videoObject.file);
         });
         this.hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-          this.hls.currentLevel = 3;
           this.start();
         });
         this.hls.on(Hls.Events.ERROR, (event, data) => {
@@ -175,7 +191,10 @@ class Receiver {
   fakeinit() {
     this.castDebugLogger = {
       debug: function (type, message) {
-        console.debug(type, message);
+        console.log(type, message);
+      },
+      error: function (type, message) {
+        console.log(type, message);
       },
     };
     this.receiverControls.setCastDebugger(this.castDebugLogger);
@@ -300,12 +319,38 @@ class Receiver {
     this.currentTime = loadRequestData.currentTime;
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
-    if (loadRequestData.vastUrl || loadRequestData.vastXml) {
-      this.vastService.loadAds(
-        loadRequestData.vastUrl,
-        loadRequestData.vastXml
+
+    try {
+      this.config.replay =
+        typeof loadRequestData.replay !== "undefined"
+          ? loadRequestData.replay
+          : false;
+      this.castDebugLogger.info(
+        this.debugTags.LOAD_REQUEST,
+        "Before error " + loadRequestData.customData.vastUrl
       );
-    } else this.attachMedia();
+      if (
+        loadRequestData.customData.vastUrl ||
+        loadRequestData.customData.vastXml
+      ) {
+        this.vastService.loadAds(
+          loadRequestData.customData.vastUrl,
+          loadRequestData.customData.vastXml
+        );
+        return null;
+      } else this.attachMedia();
+    } catch (error) {
+      this.castDebugLogger.error(
+        this.debugTags.LOAD_REQUEST,
+        JSON.stringify(error)
+      );
+      this.castDebugLogger.info(
+        this.debugTags.LOAD_REQUEST,
+        "Config" + JSON.stringify(this.config)
+      );
+      this.attachMedia();
+    }
+
     return null;
     // If there is no source or a malformed ID then return an error.
     if (!source || source == "" || !source.match(ID_REGEX)) {
