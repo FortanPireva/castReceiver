@@ -20,7 +20,7 @@
     <div class="video-container adContainer">
         <!-- <video src="https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/360p.mp4" width="100%" height="100%"
             autoplay></video> -->
-        <video id="video" ` width="100%" height="100%"></video>
+        <video id="video" width="100%" height="100%" autoplay muted="muted"></video>
         <div class="controls">
             <div class="seekbar">
                 <div class="seekbar-progress"></div>
@@ -33,7 +33,6 @@
             <div class="vp-icon-play"></div>
         </div>
     </div>
-
     <script src="./build/vpReceiver.js"></script>
     <script>
         var receiver = vpReceiver("video", {

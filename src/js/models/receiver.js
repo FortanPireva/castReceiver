@@ -24,31 +24,46 @@ class Receiver {
     this.debugTags = {
       LOAD_REQUEST: "LOAD_REQUEST",
       ATTACH_MEDIA: "ATTACH_MEDIA",
+      ONPLAY: "ON_PLAY",
+      START: "START",
     };
+    this.isAdPlaying = false;
   }
   start() {
     this.receiverControls.loader.style.display = "none";
+    this.castDebugLogger.debug(this.debugTags.START, "Starting video...");
     this.onPlay();
   }
 
   onPlay() {
     // return this.playerManager.play();
     this.castDebugLogger.debug("on play", this.video.getAttribute("src"));
-    this.video
-      .play()
-      .then(() => {
-        if (!this.videoStarted) {
-          this.receiverControls.showControls();
-          this.videoStarted = true;
-        } else {
-          this.receiverControls.play();
-        }
-        this.receiverControls.hideControls(6000);
-      })
-      .catch(() => {});
+    this.castDebugLogger.debug("isadplaying", this.isAdPlaying);
+    if (!this.isAdPlaying) {
+      this.video
+        .play()
+        .then(() => {
+          if (!this.videoStarted) {
+            this.receiverControls.showControls();
+            this.videoStarted = true;
+          } else {
+            this.receiverControls.play();
+          }
+          this.receiverControls.hideControls(6000);
+        })
+        .catch((e) => {
+          this.castDebugLogger.debug(
+            this.debugTags.ONPLAY,
+            " Couldn't play video.Tring one more time " + e
+          );
+        });
+    } else this.vastService.resume();
   }
   onPause() {
-    this.playerManager.pause();
+    if (!this.isAdPlaying) this.video.pause();
+    else {
+      this.vastService.pause();
+    }
     this.receiverControls.pause();
     this.receiverControls.showControls();
   }
@@ -58,13 +73,8 @@ class Receiver {
   }
   onEnd() {
     this.castDebugLogger.debug("on End", this.config.replay);
-    if (this.config.replay) {
-      this.attachMedia();
-    } else {
-      var text = document.createElement("p");
-      text.textContent = "no more videos";
-      document.querySelector("body").append(text);
-    }
+    if (this.isAdPlaying) this.isAdPlaying = false;
+    this.attachMedia();
   }
   onTimeUpdate() {
     this.receiverControls.update(this.updatePlayerState());
@@ -110,9 +120,7 @@ class Receiver {
         this.hls.on(Hls.Events.ERROR, (event, data) => {
           this.castDebugLogger.debug("HLS  ERROR", data.details);
         });
-      } catch (error) {
-        this.castDebugLogger.debug("hls error", error);
-      }
+      } catch (error) {}
 
       // this.hls.on(Hls.Events.ERROR, (event, data) => {
       //   if (data.details === "manifestLoadError") {
@@ -296,6 +304,7 @@ class Receiver {
     this.onPlay = this.onPlay.bind(this);
     this.onPause = this.onPause.bind(this);
     this.updatePlayerState = this.updatePlayerState.bind(this);
+    this.onEnd = this.onEnd.bind(this);
   }
   onLoadRequest(loadRequestData) {
     // If the loadRequestData is incomplete return an error message
@@ -320,36 +329,34 @@ class Receiver {
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
 
-    try {
-      this.config.replay =
-        typeof loadRequestData.replay !== "undefined"
-          ? loadRequestData.replay
-          : false;
-      this.castDebugLogger.info(
-        this.debugTags.LOAD_REQUEST,
-        "Before error " + loadRequestData.customData.vastUrl
-      );
-      if (
-        loadRequestData.customData.vastUrl ||
+    // try {
+    this.config.replay =
+      typeof loadRequestData.replay !== "undefined"
+        ? loadRequestData.replay
+        : true;
+    if (
+      loadRequestData.customData.vastUrl ||
+      loadRequestData.customData.vastXml
+    ) {
+      // this.playerManager.setMediaElement(this.video);
+      this.vastService.loadAds(
+        loadRequestData.customData.vastUrl,
         loadRequestData.customData.vastXml
-      ) {
-        this.vastService.loadAds(
-          loadRequestData.customData.vastUrl,
-          loadRequestData.customData.vastXml
-        );
-        return null;
-      } else this.attachMedia();
-    } catch (error) {
-      this.castDebugLogger.error(
-        this.debugTags.LOAD_REQUEST,
-        JSON.stringify(error)
       );
-      this.castDebugLogger.info(
+      this.castDebugLogger.debug(
         this.debugTags.LOAD_REQUEST,
-        "Config" + JSON.stringify(this.config)
+        "Loading ad finished"
       );
-      this.attachMedia();
-    }
+      return null;
+    } else this.attachMedia();
+    // } catch (error) {
+    //   this.castDebugLogger.error(this.debugTags.LOAD_REQUEST);
+    //   this.castDebugLogger.info(
+    //     this.debugTags.LOAD_REQUEST,
+    //     "Config" + JSON.stringify(this.config)
+    //   );
+    //   this.attachMedia();
+    // }
 
     return null;
     // If there is no source or a malformed ID then return an error.

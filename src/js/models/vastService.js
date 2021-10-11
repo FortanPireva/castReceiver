@@ -10,6 +10,7 @@ class VastService {
     this.initialized = false;
     this.autoplayAllowed = false;
     this.autoplayRequiresMuted = false;
+    this.hasErrors = false;
   }
 
   init() {
@@ -36,6 +37,41 @@ class VastService {
       false
     );
   }
+
+  onAllAdsCompleted(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "ad completed"
+    );
+  }
+  onAdCompleted(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "ad completed"
+    );
+    this.adsManager.destroy();
+    if (!this.hasErrors) this.receiver.onEnd();
+    // this.adsManager.destroy();
+    // this.receiver.playerManager.s`etMediaElement(this.video);
+  }
+  onContentPauseRequested(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "Content Pause Request"
+    );
+  }
+  onContentResumeRequested() {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "Content Resume Request"
+    );
+  }
+  onAdLoaded(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "Ad loaded"
+    );
+  }
   loadAds(vastUrl, vastXml) {
     this.currentAds = {};
     if (!this.initialized) {
@@ -59,7 +95,6 @@ class VastService {
       this.load(this.currentAds.content).bind(this);
     else this.load(null, this.currentAds.content).bind(this);
   }
-  onDoubleClick(event) {}
   load(vastUrl, vastXml) {
     if (!this.initialized) this.init();
     this.receiver.castDebugLogger.debug(
@@ -67,11 +102,6 @@ class VastService {
       "Initialized" + this.vastUrl
     );
 
-    // this.skipOffset = this.player.videoObject.ad.skipTime;
-    this.adContainer.addEventListener(
-      "dblclick",
-      this.onDoubleClick.bind(this)
-    );
     this.adsRequest = new google.ima.AdsRequest();
     this.receiver.castDebugLogger.debug("okej e qity pra", "pse" + vastUrl);
 
@@ -97,7 +127,24 @@ class VastService {
     this.adsRequest.vastLoadTimeout = 8000;
     this.adsLoader.requestAds(this.adsRequest);
   }
-
+  onTimeUpdate() {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " ON TIME UPDATE"
+    );
+  }
+  onAdSkip(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "ON AD Ski"
+    );
+  }
+  onAdStarted(e) {
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "ON AD STARTED"
+    );
+  }
   onAdsManagerLoaded(adsManagerLoadedEvent) {
     if (this.adsManager) {
       this.adsManager.destroy();
@@ -106,6 +153,95 @@ class VastService {
     this.adsManager = adsManagerLoadedEvent.getAdsManager(
       this.receiver.video,
       adsRenderingSettings
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdErrorEvent.Type.AD_ERROR,
+      this.onAdError.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
+      this.onContentPauseRequested.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
+      this.onContentResumeRequested.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
+      this.onAllAdsCompleted.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.LOADED,
+      this.onAdLoaded.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.STARTED,
+      this.onAdStarted.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.COMPLETE,
+      this.onAdCompleted.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.SKIPPED,
+      this.onAdSkip.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.AD_PROGRESS,
+      this.onTimeUpdate.bind(this)
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.AD_BUFFERING,
+      () => {
+        this.loading = true;
+      }
+    );
+    // this.adsManager.addEventListener(
+    //   google.ima.AdEvent.Type.PAUSED,
+    //   (event) => {
+    //     this.paused = true;
+    //     this.player.videoControls.playPauseButton.update({
+    //       paused: this.paused,
+    //     });
+    //     showOverlayHover(this.player, cssClasses.icons.playPauseButton.pause);
+    //     Utils.fire(this.adContainer, Events.adEvents.AD_PAUSE, {
+    //       currentTime: this.player.video.currentTime,
+    //       adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
+    //     });
+    //   }
+    // );
+
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.RESUMED,
+      (event) => {
+        this.paused = false;
+        this.player.videoControls.playPauseButton.update({
+          paused: this.paused,
+        });
+        showOverlayHover(this.player, cssClasses.icons.playPauseButton.play);
+        if (!this.adsManager.getCurrentAd().playbackStarted)
+          Utils.fire(this.adContainer, Events.adEvents.AD_PLAY, {
+            currentTime: this.player.video.currentTime,
+            begin: true,
+            adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
+          });
+        else
+          Utils.fire(this.adContainer, Events.adEvents.AD_PLAY, {
+            currentTime: this.player.video.currentTime,
+            resume: true,
+            afterPause: true,
+            adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
+          });
+      }
+    );
+    this.adsManager.addEventListener(
+      google.ima.AdEvent.Type.SKIPPABLE_STATE_CHANGED,
+      () => {
+        Utils.fire(this.adContainer, Events.adEvents.AD_SKIPPABLE, {
+          currentTime: this.player.video.currentTime,
+          adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
+        });
+      }
     );
     this.playAds();
   }
@@ -117,6 +253,7 @@ class VastService {
     const width = this.receiver.video.clientWidth;
     const height = this.receiver.video.clientHeight;
     try {
+      this.receiver.isAdPlaying = true;
       this.adsManager.init(width, height, google.ima.ViewMode.FULLSCREEN);
       this.adsManager.start();
       this.receiver.receiverControls.loader.style.display = "none";
@@ -129,6 +266,24 @@ class VastService {
       VastService.DEBUG_VAST_SERVICE,
       " ad error" + e
     );
+    this.hasErrors = true;
+    this.receiver.onEnd();
+  }
+  resume() {
+    this.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "RESUMING AD Event"
+    );
+    if (!this.adsManager) return;
+    this.adsManager.resume();
+  }
+  pause() {
+    this.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      "PAUSE AD Event"
+    );
+    if (!this.adsManager) return;
+    this.adsManager.pause();
   }
 }
 

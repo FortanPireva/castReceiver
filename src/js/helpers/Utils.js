@@ -22,7 +22,24 @@ const formatTime = (time) => {
     seconds.toString().padStart(2, "0")
   );
 };
+// Fire custom event
+const fire = (
+  el,
+  eventName,
+  detail = null,
+  bubbles = true,
+  cancelable = true
+) => {
+  let evt = new CustomEvent(eventName, {
+    detail,
+    bubbles,
+    cancelable,
+  });
+
+  el.dispatchEvent(evt);
+};
 
 export default {
   formatTime,
+  fire,
 };
