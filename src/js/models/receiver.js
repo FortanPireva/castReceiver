@@ -26,8 +26,13 @@ class Receiver {
       ATTACH_MEDIA: "ATTACH_MEDIA",
       ONPLAY: "ON_PLAY",
       START: "START",
+      INIT: "INIT",
+      EVENTS: "EVENTS",
+      ONEND: "ONEND",
+      BROADCAST: "BROADCAST",
     };
     this.isAdPlaying = false;
+    this.NAMESPACE = "urn:x-cast:tech.gjirafa.vp-service";
   }
   start() {
     this.receiverControls.loader.style.display = "none";
@@ -71,10 +76,33 @@ class Receiver {
     this.video.addEventListener("timeupdate", this.onTimeUpdate);
     this.video.addEventListener("ended", this.onEnd.bind(this));
   }
+  broadcast(message) {
+    this.castDebugLogger.debug(this.debugTags.BROADCAST, message);
+    this.context.sendCustomMessage(this.NAMESPACE, undefined, message);
+  }
   onEnd() {
     this.castDebugLogger.debug("on End", this.config.replay);
-    if (this.isAdPlaying) this.isAdPlaying = false;
-    this.attachMedia();
+    try {
+      if (this.isAdPlaying) {
+        this.broadcast({
+          message: "Ad finished",
+          code: 2,
+        });
+        this.isAdPlaying = false;
+      } else {
+        this.broadcast({
+          message: "Video finished",
+          code: 3,
+        });
+      }
+    } catch (error) {
+      this.castDebugLogger.error(
+        this.debugTags.ONEND,
+        " Error" + error.toString()
+      );
+    }
+    return null;
+    // this.attachMedia();
   }
   onTimeUpdate() {
     this.receiverControls.update(this.updatePlayerState());
@@ -207,11 +235,22 @@ class Receiver {
     };
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
-      "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/360p.mp4";
-    this.vastService.loadAds(
-      "https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"
-    );
-    // this.attachMedia();
+      "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/1080p.mp4";
+    // this.vastService.loadAds(
+    //   "https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"
+    // );
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        alert(
+          `Error attempting to enable full-screen mode: ${
+            err.message
+          } (${err.toString()})`
+        );
+      });
+    } else {
+      document.exitFullscreen();
+    }
+    this.attachMedia();
     this.bindMethods();
     // this.bindInterceptors();
     this.addPlayerEvents();
@@ -220,11 +259,12 @@ class Receiver {
     this.context = cast.framework.CastReceiverContext.getInstance();
 
     this.context.setLoggerLevel(cast.framework.LoggerLevel.DEBUG);
-    this.playerManager = this.context.getPlayerManager();
-    this.playerManager.setMediaElement(this.video);
+
     this.castDebugLogger = cast.debug.CastDebugLogger.getInstance();
     this.castDebugLogger.setEnabled(true);
-    this.castDebugLogger.debug("hello", "okej");
+    this.castDebugLogger.debug(this.debugTags.INIT, "castdebugger initialized");
+    this.playerManager = this.context.getPlayerManager();
+    this.playerManager.setMediaElement(this.video);
 
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     // this.playbackConfig.autoResumeDuration = 5;
@@ -245,7 +285,12 @@ class Receiver {
     // this.videoObject.file =
     //   "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/360p.mp4";
     // this.attachMedia();
-    this.context.start();
+    const options = new cast.framework.CastReceiverOptions();
+    // Map of namespace names to their types.
+    options.customNamespaces = {};
+    options.customNamespaces[this.NAMESPACE] =
+      cast.framework.system.MessageType.JSON;
+    this.context.start(options);
     this.bindMethods();
     this.bindInterceptors();
     this.addPlayerEvents();
@@ -277,6 +322,18 @@ class Receiver {
   }
 
   bindInterceptors() {
+    this.context.addEventListener(
+      cast.framework.system.EventType.SENDER_DISCONNECTED,
+      (event) => {
+        window.close();
+      }
+    );
+    // this.context.addCustomMessageListener(NAMESPACE, (event) => {
+    //   this.castDebugLogger.debug(
+    //     this.debugTags.EVENTS,
+    //     "addCustomMessageListener" + event.data
+    //   );
+    // });
     this.playerManager.setMessageInterceptor(
       cast.framework.messages.MessageType.LOAD,
       this.onLoadRequest.bind(this)
@@ -328,36 +385,44 @@ class Receiver {
     this.currentTime = loadRequestData.currentTime;
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
-
     // try {
     this.config.replay =
       typeof loadRequestData.replay !== "undefined"
         ? loadRequestData.replay
         : true;
-    if (
-      loadRequestData.customData.vastUrl ||
-      loadRequestData.customData.vastXml
-    ) {
-      // this.playerManager.setMediaElement(this.video);
-      this.vastService.loadAds(
-        loadRequestData.customData.vastUrl,
+    try {
+      if (
+        loadRequestData.customData.vastUrl ||
         loadRequestData.customData.vastXml
-      );
-      this.castDebugLogger.debug(
-        this.debugTags.LOAD_REQUEST,
-        "Loading ad finished"
-      );
-      return null;
-    } else this.attachMedia();
-    // } catch (error) {
-    //   this.castDebugLogger.error(this.debugTags.LOAD_REQUEST);
-    //   this.castDebugLogger.info(
-    //     this.debugTags.LOAD_REQUEST,
-    //     "Config" + JSON.stringify(this.config)
-    //   );
-    //   this.attachMedia();
-    // }
-
+      ) {
+        // this.playerManager.setMediaElement(this.video);
+        this.broadcast({
+          message: "playing ad",
+        });
+        this.vastService.loadAds(
+          loadRequestData.customData.vastUrl,
+          loadRequestData.customData.vastXml
+        );
+        this.broadcast({
+          message: "ad loading finished",
+        });
+        this.castDebugLogger.debug(
+          this.debugTags.LOAD_REQUEST,
+          "Loading ad finished"
+        );
+        return null;
+      } else {
+        this.attachMedia();
+        this.broadcast({
+          message: "attaching media",
+        });
+      }
+    } catch (error) {
+      this.broadcast({
+        message: error.toString(),
+        stack: error.stack,
+      });
+    }
     return null;
     // If there is no source or a malformed ID then return an error.
     if (!source || source == "" || !source.match(ID_REGEX)) {

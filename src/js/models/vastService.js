@@ -24,7 +24,7 @@ class VastService {
       this.receiver.video
     );
     this.adsLoader = new google.ima.AdsLoader(this.adsDisplayContainer);
-
+    this.adsLoader.getSettings().setPlayerType("cast/client-side");
     this.adsLoader.addEventListener(
       google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
       this.onAdsManagerLoaded.bind(this),
@@ -50,7 +50,7 @@ class VastService {
       "ad completed"
     );
     this.adsManager.destroy();
-    if (!this.hasErrors) this.receiver.onEnd();
+    if (!this.hasErrors && this.receiver.isAdPlaying) this.receiver.onEnd();
     // this.adsManager.destroy();
     // this.receiver.playerManager.s`etMediaElement(this.video);
   }
@@ -91,9 +91,8 @@ class VastService {
     }
     this.currentAds.currentAdIndex = 0;
     this.receiver.castDebugLogger.debug(VastService.DEBUG_VAST_SERVICE);
-    if (this.currentAds.type === "url")
-      this.load(this.currentAds.content).bind(this);
-    else this.load(null, this.currentAds.content).bind(this);
+    if (this.currentAds.type === "url") this.load(this.currentAds.content);
+    else this.load(null, this.currentAds.content);
   }
   load(vastUrl, vastXml) {
     if (!this.initialized) this.init();
@@ -103,8 +102,6 @@ class VastService {
     );
 
     this.adsRequest = new google.ima.AdsRequest();
-    this.receiver.castDebugLogger.debug("okej e qity pra", "pse" + vastUrl);
-
     if (vastUrl) {
       this.adsRequest.adTagUrl = vastUrl;
     } else if (vastXml) {
@@ -112,7 +109,6 @@ class VastService {
     } else {
       return;
     }
-    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdfxx");
 
     this.adsRequest.linearAdSlotWidth = this.receiver.video.clientWidth;
     this.adsRequest.linearAdSlotHeight = this.receiver.video.clientHeight;
@@ -126,6 +122,7 @@ class VastService {
 
     this.adsRequest.vastLoadTimeout = 8000;
     this.adsLoader.requestAds(this.adsRequest);
+    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdf123");
   }
   onTimeUpdate() {
     this.receiver.castDebugLogger.debug(
@@ -149,89 +146,95 @@ class VastService {
     if (this.adsManager) {
       this.adsManager.destroy();
     }
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " before getadsmanager"
+    );
     const adsRenderingSettings = new google.ima.AdsRenderingSettings();
     this.adsManager = adsManagerLoadedEvent.getAdsManager(
       this.receiver.video,
       adsRenderingSettings
     );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after getadsmanager"
+    );
     this.adsManager.addEventListener(
       google.ima.AdErrorEvent.Type.AD_ERROR,
       this.onAdError.bind(this)
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onaderror"
     );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
       this.onContentPauseRequested.bind(this)
     );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onContentPauseRequested"
+    );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
       this.onContentResumeRequested.bind(this)
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onAllAdsCompleted"
     );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
       this.onAllAdsCompleted.bind(this)
     );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onAdLoaded"
+    );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.LOADED,
       this.onAdLoaded.bind(this)
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onAdStarted"
     );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.STARTED,
       this.onAdStarted.bind(this)
     );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onAdCompleted"
+    );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.COMPLETE,
       this.onAdCompleted.bind(this)
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onContentPauseRequested"
     );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.SKIPPED,
       this.onAdSkip.bind(this)
     );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onAdSkip"
+    );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.AD_PROGRESS,
       this.onTimeUpdate.bind(this)
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " after onTimeUpdate"
     );
     this.adsManager.addEventListener(
       google.ima.AdEvent.Type.AD_BUFFERING,
       () => {
         this.loading = true;
-      }
-    );
-    // this.adsManager.addEventListener(
-    //   google.ima.AdEvent.Type.PAUSED,
-    //   (event) => {
-    //     this.paused = true;
-    //     this.player.videoControls.playPauseButton.update({
-    //       paused: this.paused,
-    //     });
-    //     showOverlayHover(this.player, cssClasses.icons.playPauseButton.pause);
-    //     Utils.fire(this.adContainer, Events.adEvents.AD_PAUSE, {
-    //       currentTime: this.player.video.currentTime,
-    //       adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
-    //     });
-    //   }
-    // );
-
-    this.adsManager.addEventListener(
-      google.ima.AdEvent.Type.RESUMED,
-      (event) => {
-        this.paused = false;
-        this.player.videoControls.playPauseButton.update({
-          paused: this.paused,
-        });
-        showOverlayHover(this.player, cssClasses.icons.playPauseButton.play);
-        if (!this.adsManager.getCurrentAd().playbackStarted)
-          Utils.fire(this.adContainer, Events.adEvents.AD_PLAY, {
-            currentTime: this.player.video.currentTime,
-            begin: true,
-            adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
-          });
-        else
-          Utils.fire(this.adContainer, Events.adEvents.AD_PLAY, {
-            currentTime: this.player.video.currentTime,
-            resume: true,
-            afterPause: true,
-            adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
-          });
       }
     );
     this.adsManager.addEventListener(
@@ -242,6 +245,10 @@ class VastService {
           adPlayId: this.adsManager.getCurrentAd()?.getAdId(),
         });
       }
+    );
+    this.receiver.castDebugLogger.debug(
+      VastService.DEBUG_VAST_SERVICE,
+      " just before playing ad"
     );
     this.playAds();
   }
@@ -258,7 +265,10 @@ class VastService {
       this.adsManager.start();
       this.receiver.receiverControls.loader.style.display = "none";
     } catch (adError) {
-      console.log("AdsManager could not be started", adError);
+      this.receiver.castDebugLogger.debug(
+        this.VastService.DEBUG_VAST_SERVICE,
+        "AdsManager could not be started" + adError.getMessage()
+      );
     }
   }
   onAdError(e) {
@@ -267,10 +277,10 @@ class VastService {
       " ad error" + e
     );
     this.hasErrors = true;
-    this.receiver.onEnd();
+    this.receiver.onEnd().bind(this.receiver);
   }
   resume() {
-    this.castDebugLogger.debug(
+    this.receiver.castDebugLogger.debug(
       VastService.DEBUG_VAST_SERVICE,
       "RESUMING AD Event"
     );
@@ -278,7 +288,7 @@ class VastService {
     this.adsManager.resume();
   }
   pause() {
-    this.castDebugLogger.debug(
+    this.receiver.castDebugLogger.debug(
       VastService.DEBUG_VAST_SERVICE,
       "PAUSE AD Event"
     );
