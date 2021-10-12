@@ -35,7 +35,9 @@ class Receiver {
     this.NAMESPACE = "urn:x-cast:tech.gjirafa.vp-service";
   }
   start() {
-    this.receiverControls.loader.style.display = "none";
+    setTimeout(() => {
+      this.receiverControls.videoInfo.style.display = "none";
+    }, 2000);
     this.castDebugLogger.debug(this.debugTags.START, "Starting video...");
     this.onPlay();
   }
@@ -236,20 +238,7 @@ class Receiver {
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
       "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/1080p.mp4";
-    // this.vastService.loadAds(
-    //   "https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"
-    // );
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        alert(
-          `Error attempting to enable full-screen mode: ${
-            err.message
-          } (${err.toString()})`
-        );
-      });
-    } else {
-      document.exitFullscreen();
-    }
+
     this.attachMedia();
     this.bindMethods();
     // this.bindInterceptors();
@@ -378,6 +367,8 @@ class Receiver {
     //   loadRequestData.media.contentUrl ||
     //   loadRequestData.media.entity ||
     //   loadRequestData.media.contentId;
+    this.receiverControls.splashScreen.style.display = "none";
+    this.receiverControls.overlay.style.display = "flex";
     this.castDebugLogger.debug("VPreceiver", loadRequestData.media.contentId);
     this.castDebugLogger.debug("VPreceiver1", Hls.isSupported());
     this.videoObject.file = loadRequestData.media.contentId;
@@ -392,8 +383,9 @@ class Receiver {
         : true;
     try {
       if (
-        loadRequestData.customData.vastUrl ||
-        loadRequestData.customData.vastXml
+        (loadRequestData.customData.vastUrl ||
+          loadRequestData.customData.vastXml) &&
+        false
       ) {
         // this.playerManager.setMediaElement(this.video);
         this.broadcast({

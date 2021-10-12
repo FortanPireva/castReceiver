@@ -15,40 +15,6 @@ body {
       height: auto !important;
       object-fit: cover;
     }
-    .controls {
-      min-height: 5px;
-      z-index: 10000;
-      width: 100%;
-      position: absolute;
-      bottom: 1rem;
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      .seekbar {
-        width: calc(100% - 10px);
-        background-color: $seekbar;
-        min-height: 5px;
-        bottom: 10%;
-        left: 5px;
-        right: 5px;
-        @include seekbar-borders(3px);
-
-        .seekbar-progress {
-          width: 10px;
-          background-color: $seekbar-progress;
-          height: 0.5rem;
-          @include seekbar-borders(3px);
-        }
-      }
-      .timer {
-        margin: 10px 0;
-        width: max-content;
-        color: white;
-        font-size: 15px;
-        text-align: center;
-      }
-    }
   }
 
   .icons {

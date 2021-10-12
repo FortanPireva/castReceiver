@@ -23,6 +23,25 @@ class SeekBar {
       }, timing);
     }
   }
+  animateSeekbar() {
+    let totalwidth = this.element.parentElement.clientWidth;
+
+    let interval = clearInterval(() => {
+      let leftPosition = this.element.getBoundingClientRect().left;
+      let leftParentPosition = this.element.getBoundingClientRect().left;
+      let rightParentPosition = this.element.getBoundingClientRect().right;
+      if (this.element.clientWidth >= totalwidth / 5) {
+        this.element.style.width = `${this.element.clientWidth + 10}px`;
+      } else {
+        if (leftPosition < rightParentPosition) {
+          this.element.style.left = `${leftPosition + 10}px`;
+        } else {
+          this.element.style.left = `${leftParentPosition}px`;
+          this.element.style.width = "0px";
+        }
+      }
+    }, 10);
+  }
 }
 
 export default SeekBar;

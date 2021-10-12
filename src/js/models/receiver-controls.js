@@ -6,10 +6,14 @@ class ReceiverControls {
     this.timer = new Timer(".timer");
     this.castDebugger = null;
     this.element = document.querySelector(id);
+    this.overlay = this.element.parentElement;
+    this.videoInfo = this.overlay.children[0];
     this.show = true;
     this.loader = document.querySelector(".loader");
     this.playIcon = document.querySelector(".vp-icon-play");
     this.pauseIcon = document.querySelector(".vp-icon-pause");
+    this.videoInfo = document.querySelector(".info");
+    this.splashScreen = document.querySelector(".splash-screen");
   }
   setCastDebugger(castDebugger) {
     this.castDebugger = castDebugger;
