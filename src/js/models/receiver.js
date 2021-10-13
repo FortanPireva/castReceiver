@@ -15,7 +15,7 @@ class Receiver {
     this.videoContainer = this.video.parentElement;
     this.playbackRate = 1;
     this.autoplay = false;
-    this.receiverControls = new ReceiverControls(".controls");
+    this.receiverControls = new ReceiverControls(".controls", this);
     this.mediaManager = null;
     this.castReceiverManager = null;
     this.videoStarted = false;
@@ -33,11 +33,10 @@ class Receiver {
     };
     this.isAdPlaying = false;
     this.NAMESPACE = "urn:x-cast:tech.gjirafa.vp-service";
+    this.receiverControls = new ReceiverControls(".controls", this);
   }
   start() {
-    setTimeout(() => {
-      this.receiverControls.videoInfo.style.display = "none";
-    }, 2000);
+    this.receiverControls.resetOverlay();
     this.castDebugLogger.debug(this.debugTags.START, "Starting video...");
     this.onPlay();
   }
@@ -110,9 +109,15 @@ class Receiver {
     this.receiverControls.update(this.updatePlayerState());
   }
   updatePlayerState() {
+    this.broadcast(
+      "time " +
+        this.video.currentTime +
+        " duration " +
+        this.videoObject.duration || this.videoObject.duration
+    );
     return {
       currentTime: this.video.currentTime,
-      duration: this.videoObject.duration,
+      duration: this.videoObject.duration || this.video.duration,
     };
   }
   attachMedia() {
@@ -237,9 +242,21 @@ class Receiver {
     };
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
-      "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/1080p.mp4";
+      "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmyjhs/hls/master_file.m3u8";
+    this.receiverControls.seekbar.animateSeekbar();
+    this.receiverControls.initOverlay({
+      title: "Some title",
+      images: [
+        {
+          url: "https://liki.gjirafa.com/api/media/gjvideo/yqz0gq/retina.jpg",
+        },
+      ],
+    });
 
-    this.attachMedia();
+    setTimeout(() => {
+      this.attachMedia();
+    }, 5000);
+
     this.bindMethods();
     // this.bindInterceptors();
     this.addPlayerEvents();
@@ -367,8 +384,8 @@ class Receiver {
     //   loadRequestData.media.contentUrl ||
     //   loadRequestData.media.entity ||
     //   loadRequestData.media.contentId;
-    this.receiverControls.splashScreen.style.display = "none";
-    this.receiverControls.overlay.style.display = "flex";
+
+    this.receiverControls.initOverlay(loadRequestData.media.metadata);
     this.castDebugLogger.debug("VPreceiver", loadRequestData.media.contentId);
     this.castDebugLogger.debug("VPreceiver1", Hls.isSupported());
     this.videoObject.file = loadRequestData.media.contentId;

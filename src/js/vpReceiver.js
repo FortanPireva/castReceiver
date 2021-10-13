@@ -6,6 +6,7 @@ vpReceiver.HLSsupported = false;
 function vpReceiver(id, config) {
   let receiver = new Receiver(id, config);
   receiver.init();
+  vpReceiver.receiver = receiver;
   return receiver;
 }
 

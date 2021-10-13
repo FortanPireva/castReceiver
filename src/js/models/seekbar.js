@@ -3,6 +3,9 @@ class SeekBar {
     this.element = document.querySelector(id);
     this.castdebugger = null;
     this.show = false;
+    this.speed = 30;
+    this.interval = null;
+    this.cancelAnimation = false;
   }
   setCastDebugger(castdebugger) {
     this.castdebugger = castdebugger;
@@ -23,24 +26,57 @@ class SeekBar {
       }, timing);
     }
   }
+
   animateSeekbar() {
     let totalwidth = this.element.parentElement.clientWidth;
+    const innerFunction = () => {
+      try {
+        let leftPosition = this.element.getBoundingClientRect().left;
+        let rightPosition =
+          this.element.parentElement.getBoundingClientRect().right;
+        let leftParentPosition =
+          this.element.parentElement.getBoundingClientRect().left;
+        let rightParentPosition =
+          this.element.parentElement.getBoundingClientRect().right;
 
-    let interval = clearInterval(() => {
-      let leftPosition = this.element.getBoundingClientRect().left;
-      let leftParentPosition = this.element.getBoundingClientRect().left;
-      let rightParentPosition = this.element.getBoundingClientRect().right;
-      if (this.element.clientWidth >= totalwidth / 5) {
-        this.element.style.width = `${this.element.clientWidth + 10}px`;
-      } else {
-        if (leftPosition < rightParentPosition) {
-          this.element.style.left = `${leftPosition + 10}px`;
+        if (
+          this.element.clientWidth <= totalwidth / 4 &&
+          leftPosition <= leftParentPosition
+        ) {
+          this.element.style.width = `${
+            this.element.clientWidth + this.speed
+          }px`;
         } else {
-          this.element.style.left = `${leftParentPosition}px`;
-          this.element.style.width = "0px";
+          if (leftPosition + this.element.clientWidth < rightParentPosition) {
+            this.element.style.left = `${leftPosition + this.speed}px`;
+          } else {
+            if (leftPosition < rightParentPosition) {
+              this.element.style.left = `${leftPosition + this.speed}px`;
+              this.element.style.width = `${
+                this.element.clientWidth - this.speed
+              }px`;
+            } else {
+              this.element.style.left = `${leftParentPosition}px`;
+              this.element.style.width = "0px";
+            }
+          }
         }
+        if (this.cancelAnimation) {
+          return;
+        }
+        window.requestAnimationFrame(innerFunction);
+      } catch (error) {
+        console.log(error);
+        console.log(error.toString());
       }
-    }, 10);
+    };
+    window.requestAnimationFrame(innerFunction);
+  }
+  reset() {
+    this.cancelAnimation = true;
+    this.element.style.width = "0px";
+    this.element.style.left =
+      this.element.parentElement.getBoundingClientRect().left + "px";
   }
 }
 
