@@ -6,6 +6,7 @@ class SeekBar {
     this.speed = 30;
     this.interval = null;
     this.cancelAnimation = false;
+    this.initialLeftPosition = this.element.style.left;
   }
   setCastDebugger(castdebugger) {
     this.castdebugger = castdebugger;
@@ -28,6 +29,8 @@ class SeekBar {
   }
 
   animateSeekbar() {
+    this.element.style.position = "absolute";
+
     let totalwidth = this.element.parentElement.clientWidth;
     const innerFunction = () => {
       try {
@@ -74,9 +77,9 @@ class SeekBar {
   }
   reset() {
     this.cancelAnimation = true;
-    this.element.style.width = "0px";
-    this.element.style.left =
-      this.element.parentElement.getBoundingClientRect().left + "px";
+    this.element.style.width = "0%";
+    this.element.style.left = this.initialLeftPosition;
+    this.element.style.position = "relative";
   }
 }
 

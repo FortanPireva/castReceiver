@@ -21,6 +21,7 @@ class Receiver {
     this.videoStarted = false;
     this.vastService = new VastService(this);
     this.config = {};
+    this.ads = [];
     this.debugTags = {
       LOAD_REQUEST: "LOAD_REQUEST",
       ATTACH_MEDIA: "ATTACH_MEDIA",
@@ -58,9 +59,13 @@ class Receiver {
           this.receiverControls.hideControls(6000);
         })
         .catch((e) => {
+          this.onPause();
           this.castDebugLogger.debug(
             this.debugTags.ONPLAY,
             " Couldn't play video.Tring one more time " + e
+          );
+          this.broadcast(
+            " Couldn't play video.Tring one more time " + e.toString()
           );
         });
     } else this.vastService.resume();
@@ -79,7 +84,8 @@ class Receiver {
   }
   broadcast(message) {
     this.castDebugLogger.debug(this.debugTags.BROADCAST, message);
-    this.context.sendCustomMessage(this.NAMESPACE, undefined, message);
+    if (this.context)
+      this.context.sendCustomMessage(this.NAMESPACE, undefined, message);
   }
   onEnd() {
     this.castDebugLogger.debug("on End", this.config.replay);
@@ -88,8 +94,11 @@ class Receiver {
         this.broadcast({
           message: "Ad finished",
           code: 2,
+          time: this.currentTime,
         });
         this.isAdPlaying = false;
+        this.playerManager.setMediaElement(this.video);
+        this.attachMedia();
       } else {
         this.broadcast({
           message: "Video finished",
@@ -106,6 +115,23 @@ class Receiver {
     // this.attachMedia();
   }
   onTimeUpdate() {
+    try {
+      if (
+        this.ads.adCuePoints.includes(Math.floor(this.video.currentTime)) &&
+        !this.isAdPlaying
+      ) {
+        this.onPause();
+        this.currentTime = this.video.currentTime;
+        this.vastService.loadAds(this.ads.vasts[0][0], this.ads.vasts[0][1]);
+        this.isAdPlaying = true;
+        this.ads.vasts.pop();
+        this.ads.adCuePoints.pop();
+        // this.hls.destroy();
+
+        return;
+      }
+    } catch (error) {}
+
     this.receiverControls.update(this.updatePlayerState());
   }
   updatePlayerState() {
@@ -243,6 +269,7 @@ class Receiver {
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
       "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmyjhs/hls/master_file.m3u8";
+    this.videoObject.duration = 119;
     this.receiverControls.seekbar.animateSeekbar();
     this.receiverControls.initOverlay({
       title: "Some title",
@@ -252,6 +279,12 @@ class Receiver {
         },
       ],
     });
+    this.ads = {
+      adCuePoints: [30],
+      vasts: [
+        ["https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml", null],
+      ],
+    };
 
     setTimeout(() => {
       this.attachMedia();
@@ -393,39 +426,51 @@ class Receiver {
     this.currentTime = loadRequestData.currentTime;
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
+    this.ads = {
+      adCuePoints: [30],
+      vasts: [
+        [
+          loadRequestData.customData.vastUrl,
+          loadRequestData.customData.vastXml,
+        ],
+      ],
+    };
     // try {
     this.config.replay =
       typeof loadRequestData.replay !== "undefined"
         ? loadRequestData.replay
         : true;
     try {
-      if (
-        (loadRequestData.customData.vastUrl ||
-          loadRequestData.customData.vastXml) &&
-        false
-      ) {
-        // this.playerManager.setMediaElement(this.video);
-        this.broadcast({
-          message: "playing ad",
-        });
-        this.vastService.loadAds(
-          loadRequestData.customData.vastUrl,
-          loadRequestData.customData.vastXml
-        );
-        this.broadcast({
-          message: "ad loading finished",
-        });
-        this.castDebugLogger.debug(
-          this.debugTags.LOAD_REQUEST,
-          "Loading ad finished"
-        );
-        return null;
-      } else {
-        this.attachMedia();
-        this.broadcast({
-          message: "attaching media",
-        });
-      }
+      this.attachMedia();
+      this.broadcast({
+        message: "attaching media",
+      });
+      // if (
+      //   loadRequestData.customData.vastUrl ||
+      //   loadRequestData.customData.vastXml
+      // ) {
+      //   // this.playerManager.setMediaElement(this.video);
+      //   this.broadcast({
+      //     message: "playing ad",
+      //   });
+      //   this.vastService.loadAds(
+      //     loadRequestData.customData.vastUrl,
+      //     loadRequestData.customData.vastXml
+      //   );
+      //   this.broadcast({
+      //     message: "ad loading finished",
+      //   });
+      //   this.castDebugLogger.debug(
+      //     this.debugTags.LOAD_REQUEST,
+      //     "Loading ad finished"
+      //   );
+      //   return null;
+      // } else {
+      //   this.attachMedia();
+      //   this.broadcast({
+      //     message: "attaching media",
+      //   });
+      // }
     } catch (error) {
       this.broadcast({
         message: error.toString(),
