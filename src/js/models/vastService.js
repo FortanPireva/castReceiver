@@ -49,7 +49,7 @@ class VastService {
       VastService.DEBUG_VAST_SERVICE,
       "ad completed"
     );
-    this.adsManager.destroy();
+    // if (this.adsManager) this.adsManager.destroy();
     if (!this.hasErrors && this.receiver.isAdPlaying) this.receiver.onEnd();
     // this.adsManager.destroy();
     // this.receiver.playerManager.s`etMediaElement(this.video);

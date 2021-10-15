@@ -359,3 +359,8 @@ body {
       display: none; }
     body .icons .vp-icon-pause {
       display: none; }
+  body .adContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%; }
