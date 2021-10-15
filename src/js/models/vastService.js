@@ -1,3 +1,4 @@
+import AdUI from "./adUI";
 class VastService {
   static DEBUG_VAST_SERVICE = "DEBUG_VAST_SERVICE";
   constructor(receiver) {
@@ -11,6 +12,8 @@ class VastService {
     this.autoplayAllowed = false;
     this.autoplayRequiresMuted = false;
     this.hasErrors = false;
+    this.adUI = null;
+    this.adDuration = 0;
   }
 
   init() {
@@ -36,6 +39,7 @@ class VastService {
       this.onAdError,
       false
     );
+    this.adUI = new AdUI(this.receiver);
   }
 
   onAllAdsCompleted(e) {
@@ -49,7 +53,8 @@ class VastService {
       VastService.DEBUG_VAST_SERVICE,
       "ad completed"
     );
-    // if (this.adsManager) this.adsManager.destroy();
+    this.adUI.disable();
+    if (this.adsManager) this.adsManager.destroy();
     if (!this.hasErrors && this.receiver.isAdPlaying) this.receiver.onEnd();
     // this.adsManager.destroy();
     // this.receiver.playerManager.s`etMediaElement(this.video);
@@ -118,13 +123,19 @@ class VastService {
 
     this.adsRequest.setAdWillAutoPlay(this.autoplayAllowed);
     this.adsRequest.setAdWillPlayMuted(this.autoplayRequiresMuted);
-    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdf");
 
     this.adsRequest.vastLoadTimeout = 8000;
     this.adsLoader.requestAds(this.adsRequest);
-    this.receiver.castDebugLogger.debug("okej e qity pra", "Asdf123");
   }
-  onTimeUpdate() {
+  onTimeUpdate(event) {
+    const adData = event.getAdData();
+    const currentAd = this.adsManager.getCurrentAd();
+    let adId = currentAd?.getAdId()?.toString();
+    this.receiver.receiverControls.update({
+      currentTime: adData.currentTime,
+      duration: adData.duration,
+      // ad: adIndexInfo,
+    });
     this.receiver.castDebugLogger.debug(
       VastService.DEBUG_VAST_SERVICE,
       " ON TIME UPDATE"
@@ -141,6 +152,8 @@ class VastService {
       VastService.DEBUG_VAST_SERVICE,
       "ON AD STARTED"
     );
+    this.receiver.isAdPlaying = true;
+    this.adUI.enable();
   }
   onAdsManagerLoaded(adsManagerLoadedEvent) {
     if (this.adsManager) {

@@ -1,3 +1,4 @@
+import defaulConfig from "../config/defaultConfig";
 import hlsconfig from "../config/hlsConfig";
 import ReceiverControls from "./receiver-controls";
 import VastService from "./vastService";
@@ -33,6 +34,7 @@ class Receiver {
       BROADCAST: "BROADCAST",
       ONTIMEUPDATEE: "ONTIMEUPDATE",
     };
+    this.config = { ...defaulConfig, ...config };
     this.isAdPlaying = false;
     this.NAMESPACE = "urn:x-cast:tech.gjirafa.vp-service";
     this.receiverControls = new ReceiverControls(".controls", this);
@@ -45,7 +47,6 @@ class Receiver {
   }
 
   onPlay() {
-    // return this.playerManager.play();
     this.castDebugLogger.debug("on play", this.video.getAttribute("src"));
     this.broadcast("on play" + this.video.getAttribute("src"));
     this.castDebugLogger.debug("isadplaying", this.isAdPlaying);
@@ -59,7 +60,6 @@ class Receiver {
           } else {
             this.receiverControls.play();
           }
-          // this.receiverControls.hideControls(6000);
         })
         .catch((e) => {
           this.onPause();
@@ -99,12 +99,10 @@ class Receiver {
           code: 2,
           time: this.currentTime,
         });
-        this.isAdPlaying = false;
         if (this.hls) {
           this.hls.destroy();
         }
-        // this.attachMedia();
-        // this.playerManager.setMediaElement(this.video);
+        this.isAdPlaying = false;
       } else {
         this.broadcast({
           message: "Video finished",
@@ -118,7 +116,6 @@ class Receiver {
       );
     }
     return null;
-    // this.attachMedia();
   }
   onTimeUpdate() {
     if (this.isAdPlaying) return;
@@ -146,12 +143,6 @@ class Receiver {
     this.receiverControls.update(this.updatePlayerState());
   }
   updatePlayerState() {
-    this.broadcast(
-      "time " +
-        this.video.currentTime +
-        " duration " +
-        this.videoObject.duration || this.videoObject.duration
-    );
     return {
       currentTime: this.video.currentTime,
       duration: this.videoObject.duration || this.video.duration,
@@ -208,84 +199,21 @@ class Receiver {
         });
         this.hls.attachMedia(this.video);
       } catch (error) {}
-
-      // this.hls.on(Hls.Events.ERROR, (event, data) => {
-      //   if (data.details === "manifestLoadError") {
-      //     this.videoContainer.classList.add(cssClasses.effects.hideContent);
-      //     this.videoContainer.classList.add(cssClasses.effects.showError);
-      //   }
-
-      //   if (data.details === "manifestLoadTimeOut") {
-      //     this.videoContainer.classList.add(cssClasses.effects.hideContent);
-      //     this.videoContainer.classList.add(cssClasses.effects.showError);
-      //   }
-
-      //   if (data.details === "manifestParsingError") {
-      //     this.videoContainer.classList.add(cssClasses.effects.hideContent);
-      //     this.videoContainer.classList.add(cssClasses.effects.showError);
-      //   }
-
-      //   if (data.details === "levelLoadError") {
-      //     this.removeLevel(data.context.level);
-      //   }
-
-      //   if (data.details === "fragLoadError") {
-      //     this.fragErrorCount++;
-      //     // sn referes to sequence number
-      //     if (data.frag.sn == 0) this.failedToLoadFirstFragment = true;
-      //   }
-
-      //   if (this.levelHasMissingFragments()) {
-      //     this.fragErrorCount = 0;
-      //     this.removeLevel(data.frag.level);
-      //     this.hls.loadLevel = -1;
-      //     console.log("Network error encountered");
-      //   }
-
-      //   if (this.failedToLoadFirstFragment) {
-      //     this.failedToLoadFirstFragment = false;
-      //     this.removeLevel(data.frag.level);
-      //     this.hls.loadLevel = -1;
-      //     this.onPlay();
-      //     console.log("Network error encountered");
-      //   }
-
-      //   if (!data.fatal) {
-      //     return;
-      //   }
-
-      //   switch (data.type) {
-      //     case Hls.ErrorTypes.NETWORK_ERROR:
-      //       console.log("fatal network error encountered");
-      //       this.hls.startLoad();
-      //       break;
-      //     case Hls.ErrorTypes.MEDIA_ERROR:
-      //       console.log("fatal media error encountered");
-      //       this.hls.recoverMediaError();
-      //       break;
-      //     default:
-      //       this.hls.destroy();
-      //       break;
-      //   }
-      // });
     }
     this.castDebugLogger.debug("finished attach media");
-    //  else if (this.video.canPlayType("application/vnd.apple.mpegurl")) {
-    //   this.video.src = this.videoObject.file;
-    //   if (Utils.isIOS()) {
-    //     fps_drm.init(
-    //       this.video,
-    //       config.fpsCertificateUrl,
-    //       this.videoObject.assetId
-    //     );
-    //   }
-    //   this.video.playsInline = true;
-    //   this.start();
-    // }
   }
   fakeinit() {
+    let self = this;
     this.castDebugLogger = {
       debug: function (type, message) {
+        if (typeof message === "object") {
+          if (message.code == 2) {
+            self.video.currentTime = message.time;
+            setTimeout(() => {
+              self.attachMedia();
+            }, 700);
+          }
+        }
         console.log(type, message);
       },
       error: function (type, message) {
@@ -317,7 +245,6 @@ class Receiver {
     }, 5000);
 
     this.bindMethods();
-    // this.bindInterceptors();
     this.addPlayerEvents();
   }
   init() {
@@ -332,24 +259,6 @@ class Receiver {
     this.playerManager.setMediaElement(this.video);
 
     this.receiverControls.setCastDebugger(this.castDebugLogger);
-    // this.playbackConfig.autoResumeDuration = 5;
-    // this.castDebugLogger.info(LOG_RECEIVER_TAG, `autoinit: `);
-    // this.controls.clearDefaultSlotAssignments();
-    // this.drawButtons();
-
-    // context.start({
-    //   queue: new CastQueue(),
-    //   playbackConfig: this.playbackConfig,
-    //   supportedCommands:
-    //     cast.framework.messages.Command.ALL_BASIC_MEDIA |
-    //     cast.framework.messages.Command.QUEUE_PREV |
-    //     cast.framework.messages.Command.QUEUE_NEXT |
-    //     cast.framework.messages.Command.STREAM_TRANSFER,
-    // });
-    // this.bindInterceptors();
-    // this.videoObject.file =
-    //   "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmylds/mp4/360p.mp4";
-    // this.attachMedia();
     const options = new cast.framework.CastReceiverOptions();
     // Map of namespace names to their types.
     options.customNamespaces = {};
@@ -433,20 +342,6 @@ class Receiver {
     this.onEnd = this.onEnd.bind(this);
   }
   onLoadRequest(loadRequestData) {
-    // If the loadRequestData is incomplete return an error message
-    // if (!loadRequestData || !loadRequestData.media) {
-    //   const error = new cast.framework.messages.ErrorData(
-    //     cast.framework.messages.ErrorType.LOAD_FAILED
-    //   );
-    //   error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-    //   return error;
-    // }
-
-    // // check all content source fields for asset URL or ID
-    // let source =
-    //   loadRequestData.media.contentUrl ||
-    //   loadRequestData.media.entity ||
-    //   loadRequestData.media.contentId;
     if (this.hls) this.hls.destroy();
     this.receiverControls.initOverlay(loadRequestData.media.metadata);
     this.castDebugLogger.debug("VPreceiver", loadRequestData.media.contentId);
@@ -476,32 +371,6 @@ class Receiver {
       this.broadcast({
         message: "attaching media",
       });
-      // if (
-      //   loadRequestData.customData.vastUrl ||
-      //   loadRequestData.customData.vastXml
-      // ) {
-      //   // this.playerManager.setMediaElement(this.video);
-      //   this.broadcast({
-      //     message: "playing ad",
-      //   });
-      //   this.vastService.loadAds(
-      //     loadRequestData.customData.vastUrl,
-      //     loadRequestData.customData.vastXml
-      //   );
-      //   this.broadcast({
-      //     message: "ad loading finished",
-      //   });
-      //   this.castDebugLogger.debug(
-      //     this.debugTags.LOAD_REQUEST,
-      //     "Loading ad finished"
-      //   );
-      //   return null;
-      // } else {
-      //   this.attachMedia();
-      //   this.broadcast({
-      //     message: "attaching media",
-      //   });
-      // }
     } catch (error) {
       this.broadcast({
         message: error.toString(),
@@ -509,52 +378,6 @@ class Receiver {
       });
     }
     return null;
-    // If there is no source or a malformed ID then return an error.
-    if (!source || source == "" || !source.match(ID_REGEX)) {
-      let error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED
-      );
-      error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-      return error;
-    }
-
-    let sourceId = source.match(ID_REGEX)[1];
-
-    // Add breaks to the media information and set the contentUrl
-    return addBreaks(loadRequestData.media)
-      .then(() => {
-        // If the source is a url that points to an asset don't fetch from backend
-        if (sourceId.includes(".")) {
-          castDebugLogger.debug(
-            LOG_RECEIVER_TAG,
-            "Interceptor received full URL"
-          );
-          loadRequestData.media.contentUrl = source;
-          return loadRequestData;
-        }
-
-        // Fetch the contentUrl if provided an ID or entity URL
-        else {
-          castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-          return this.fetchMediaById(sourceId).then((item) => {
-            let metadata = new cast.framework.messages.GenericMediaMetadata();
-            metadata.title = item.title;
-            metadata.subtitle = item.description;
-            loadRequestData.media.contentId = item.stream.dash;
-            loadRequestData.media.contentType = "application/dash+xml";
-            loadRequestData.media.metadata = metadata;
-            return loadRequestData;
-          });
-        }
-      })
-      .catch((errorMessage) => {
-        let error = new cast.framework.messages.ErrorData(
-          cast.framework.messages.ErrorType.LOAD_FAILED
-        );
-        error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-        castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-        return error;
-      });
   }
   addBreaks(mediaInformation) {
     castDebugLogger.debug(

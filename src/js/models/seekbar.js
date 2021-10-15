@@ -27,7 +27,9 @@ class SeekBar {
       }, timing);
     }
   }
-
+  setColor(color) {
+    this.element.style.backgroundColor = color;
+  }
   animateSeekbar() {
     this.element.style.position = "absolute";
 

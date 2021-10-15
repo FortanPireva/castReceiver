@@ -9,7 +9,8 @@ const config = {
   manifestLoadingRetryDelay: 1000,
   manifestLoadingMaxRetryTimeout: 2000,
   emeEnabled: true,
-  startLevel: 4,
+  // startLevel: 3,
+  // autoLevelCapping: 3,
   widevineLicenseUrl:
     "https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=3297CC",
 };
