@@ -47,12 +47,14 @@ class ReceiverControls {
     this.show = true;
     this.showHide(10);
   }
-  resetOverlay() {
-    setTimeout(() => {
+  resetOverlay(timeout) {
+    const reset = () => {
       this.seekbar.reset();
 
       this.info.style.display = "none";
-    }, 3000);
+    };
+    if (!timeout) return setTimeout(reset, 3000);
+    return reset();
   }
   showHide(timing) {
     // this.castdebugger.debug("showHide", `${timing} ${this.show}`);

@@ -22,7 +22,7 @@ class Receiver {
     this.videoStarted = false;
     this.vastService = new VastService(this);
     this.config = {};
-    this.ads = [];
+    this.adBreaks = [];
     this.debugTags = {
       LOAD_REQUEST: "LOAD_REQUEST",
       ATTACH_MEDIA: "ATTACH_MEDIA",
@@ -46,7 +46,7 @@ class Receiver {
     this.onPlay();
   }
 
-  onPlay() {
+  onPlay(data) {
     this.castDebugLogger.debug("on play", this.video.getAttribute("src"));
     this.broadcast("on play" + this.video.getAttribute("src"));
     this.castDebugLogger.debug("isadplaying", this.isAdPlaying);
@@ -60,6 +60,7 @@ class Receiver {
           } else {
             this.receiverControls.play();
           }
+          return data;
         })
         .catch((e) => {
           this.onPause();
@@ -73,13 +74,14 @@ class Receiver {
         });
     } else this.vastService.resume();
   }
-  onPause() {
+  onPause(data) {
     if (!this.isAdPlaying) this.video.pause();
     else {
       this.vastService.pause();
     }
     this.receiverControls.pause();
     this.receiverControls.showControls();
+    return data;
   }
   addPlayerEvents() {
     this.video.addEventListener("timeupdate", this.onTimeUpdate);
@@ -121,18 +123,20 @@ class Receiver {
     if (this.isAdPlaying) return;
     try {
       if (
-        this.ads.adCuePoints.includes(Math.floor(this.video.currentTime)) &&
+        this.adBreaks
+          .map((ad) => ad.breakTimingValue)
+          .includes(Math.floor(this.video.currentTime)) &&
         !this.isAdPlaying
       ) {
+        this.broadcast(this.adBreaks);
         this.onPause();
         this.currentTime = Math.floor(this.video.currentTime);
         this.isAdPlaying = true;
-        this.vastService.loadAds(this.ads.vasts[0][0], this.ads.vasts[0][1]);
+        this.vastService.loadAds(this.adBreaks[0].adTagUrl[0]);
         if (this.hls) {
           this.hls.destroy();
         }
-        this.ads.vasts.pop();
-        this.ads.adCuePoints.pop();
+        this.adBreaks.shift();
         // this.hls.destroy();
         return;
       }
@@ -233,7 +237,7 @@ class Receiver {
         },
       ],
     });
-    this.ads = {
+    this.adBreaks = {
       adCuePoints: [10],
       vasts: [
         ["https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml", null],
@@ -258,6 +262,36 @@ class Receiver {
     this.playerManager = this.context.getPlayerManager();
     this.playerManager.setMediaElement(this.video);
 
+    this.playerManager.setSupportedMediaCommands(
+      cast.framework.messages.Command.SEEK |
+        cast.framework.messages.Command.PAUSE |
+        cast.framework.messages.Command.PLAY
+    );
+
+    // browse content area
+    const controls = cast.framework.ui.Controls.getInstance();
+
+    const item1 = new cast.framework.ui.BrowseItem();
+    item1.title = "Title 1";
+    item1.subtitle = "Subtitle 1";
+    item1.duration = 300;
+    item1.imageType = cast.framework.ui.BrowseImageType.MUSIC_TRACK;
+    item1.image = new cast.framework.messages.Image("1.jpg");
+    item1.entity = "example://gizmos/1";
+
+    const item2 = new cast.framework.ui.BrowseItem();
+    item2.title = "Title 2";
+    item2.subtitle = "Subtitle 2";
+    item2.duration = 100;
+    item2.imageType = cast.framework.ui.BrowseImageType.MUSIC_TRACK;
+    item2.image = new cast.framework.messages.Image("2.jpg");
+    item2.entity = "example://gizmos/2";
+
+    const items = [item1, item2];
+
+    const browseContent = new cast.framework.ui.BrowseContent();
+    browseContent.title = "Up Next";
+    browseContent.items = items;
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     const options = new cast.framework.CastReceiverOptions();
     // Map of namespace names to their types.
@@ -270,6 +304,7 @@ class Receiver {
     this.addPlayerEvents();
   }
   onSeek(requestData) {
+    this.broadcast(requestData.toString());
     this.video.currentTime = requestData.currentTime;
     this.receiverControls.showControls();
     this.receiverControls.hideControls(6000);
@@ -341,8 +376,18 @@ class Receiver {
     this.updatePlayerState = this.updatePlayerState.bind(this);
     this.onEnd = this.onEnd.bind(this);
   }
+  initState() {
+    this.hls = null;
+    this.currentTime = 0;
+    this.video.currentTime = 0;
+    this.receiverControls.resetOverlay(true);
+  }
   onLoadRequest(loadRequestData) {
-    if (this.hls) this.hls.destroy();
+    if (this.hls) {
+      this.hls.destroy();
+      this.vastService.adUI.disable();
+      this.initState().bind(this);
+    }
     this.receiverControls.initOverlay(loadRequestData.media.metadata);
     this.castDebugLogger.debug("VPreceiver", loadRequestData.media.contentId);
     this.castDebugLogger.debug("VPreceiver1", Hls.isSupported());
@@ -352,15 +397,7 @@ class Receiver {
     this.playbackRate = loadRequestData.playbackRate;
     this.autoplay = loadRequestData.autoplay;
     if (loadRequestData.requireAds)
-      this.ads = {
-        adCuePoints: [10],
-        vasts: [
-          [
-            loadRequestData.customData.vastUrl,
-            loadRequestData.customData.vastXml,
-          ],
-        ],
-      };
+      this.adBreaks = loadRequestData.customData.adBreaks;
     // try {
     this.config.replay =
       typeof loadRequestData.replay !== "undefined"
@@ -368,6 +405,7 @@ class Receiver {
         : true;
     try {
       this.attachMedia();
+      this.receiverControls.update(this.updatePlayerState());
       this.broadcast({
         message: "attaching media",
       });
