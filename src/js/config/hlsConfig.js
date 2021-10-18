@@ -12,7 +12,7 @@ const config = {
   // startLevel: 3,
   // autoLevelCapping: 3,
   widevineLicenseUrl:
-    "https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=3297CC",
+    "https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=90FC04",
 };
 
 export default config;
