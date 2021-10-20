@@ -2,6 +2,7 @@ import defaulConfig from "../config/defaultConfig";
 import hlsconfig from "../config/hlsConfig";
 import ReceiverControls from "./receiver-controls";
 import VastService from "./vastService";
+import Environment from "../config/environment";
 class Receiver {
   constructor(id, config) {
     this.context = null;
@@ -33,6 +34,7 @@ class Receiver {
       ONEND: "ONEND",
       BROADCAST: "BROADCAST",
       ONTIMEUPDATEE: "ONTIMEUPDATE",
+      INITSTATE: "INITSTATE",
     };
     this.config = { ...defaulConfig, ...config };
     this.isAdPlaying = false;
@@ -60,6 +62,8 @@ class Receiver {
           } else {
             this.receiverControls.play();
           }
+          this.receiverControls.show = false;
+          this.receiverControls.showHide(2000);
           return data;
         })
         .catch((e) => {
@@ -87,7 +91,12 @@ class Receiver {
     this.video.addEventListener("timeupdate", this.onTimeUpdate);
     this.video.addEventListener("ended", this.onEnd.bind(this));
   }
-  broadcast(message) {
+  broadcast(message, required) {
+    this.castDebugLogger.debug(
+      this.debugTags.BROADCAST,
+      Environment.isDevelopment
+    );
+    if (!required && !Environment.isDevelopment) return;
     this.castDebugLogger.debug(this.debugTags.BROADCAST, message);
     if (this.context)
       this.context.sendCustomMessage(this.NAMESPACE, undefined, message);
@@ -96,20 +105,26 @@ class Receiver {
     this.castDebugLogger.debug("on End", this.config.replay);
     try {
       if (this.isAdPlaying) {
-        this.broadcast({
-          message: "Ad finished",
-          code: 2,
-          time: this.currentTime,
-        });
+        this.broadcast(
+          {
+            message: "Ad finished",
+            code: 2,
+            time: this.currentTime,
+          },
+          true
+        );
         if (this.hls) {
           this.hls.destroy();
         }
         this.isAdPlaying = false;
       } else {
-        this.broadcast({
-          message: "Video finished",
-          code: 3,
-        });
+        this.broadcast(
+          {
+            message: "Video finished",
+            code: 3,
+          },
+          true
+        );
       }
     } catch (error) {
       this.castDebugLogger.error(
@@ -214,6 +229,12 @@ class Receiver {
           if (message.code == 2) {
             self.video.currentTime = message.time;
             setTimeout(() => {
+              // if (self.hls) {
+              //   self.hls.destroy();
+              //   self.vastService.adUI.disable();
+              //   self.initState();
+              // }
+
               self.attachMedia();
             }, 700);
           }
@@ -237,16 +258,23 @@ class Receiver {
         },
       ],
     });
-    this.adBreaks = {
-      adCuePoints: [10],
-      vasts: [
-        ["https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml", null],
-      ],
-    };
-
-    setTimeout(() => {
-      this.attachMedia();
-    }, 5000);
+    (this.adBreaks = [
+      {
+        breakType: "midroll",
+        adTagUrl: ["https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"],
+        breakTimingType: "time",
+        breakTimingValue: 15,
+      },
+      {
+        breakType: "midroll",
+        adTagUrl: ["https://vp-dev.gjirafa.net/vps/content/vast/preroll-2.xml"],
+        breakTimingType: "time",
+        breakTimingValue: 30,
+      },
+    ]),
+      setTimeout(() => {
+        this.attachMedia();
+      }, 5000);
 
     this.bindMethods();
     this.addPlayerEvents();
@@ -257,7 +285,7 @@ class Receiver {
     this.context.setLoggerLevel(cast.framework.LoggerLevel.DEBUG);
 
     this.castDebugLogger = cast.debug.CastDebugLogger.getInstance();
-    this.castDebugLogger.setEnabled(true);
+    this.castDebugLogger.setEnabled(Environment.isDevelopment);
     this.castDebugLogger.debug(this.debugTags.INIT, "castdebugger initialized");
     this.playerManager = this.context.getPlayerManager();
     this.playerManager.setMediaElement(this.video);
@@ -375,8 +403,10 @@ class Receiver {
     this.onPause = this.onPause.bind(this);
     this.updatePlayerState = this.updatePlayerState.bind(this);
     this.onEnd = this.onEnd.bind(this);
+    this.initState = this.initState.bind(this);
   }
   initState() {
+    this.castDebugLogger.debug(this.debugTags.INITSTATE, "initState");
     this.hls = null;
     this.currentTime = 0;
     this.video.currentTime = 0;
@@ -386,7 +416,7 @@ class Receiver {
     if (this.hls) {
       this.hls.destroy();
       this.vastService.adUI.disable();
-      this.initState().bind(this);
+      this.initState();
     }
     this.receiverControls.initOverlay(loadRequestData.media.metadata);
     this.castDebugLogger.debug("VPreceiver", loadRequestData.media.contentId);

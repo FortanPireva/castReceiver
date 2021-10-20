@@ -1,12 +1,17 @@
 const path = require("path");
-
-module.exports = {
+const Dotenv = require("dotenv-webpack");
+module.exports = (env) => ({
   devtool: "inline-source-map",
   entry: "./src/js/vpReceiver.js",
   output: {
     path: path.resolve(__dirname, "build"),
     filename: "vpReceiver.js",
   },
+  plugins: [
+    new Dotenv({
+      path: `./${env.environment}.env`,
+    }),
+  ],
   module: {
     rules: [
       {
@@ -30,4 +35,4 @@ module.exports = {
       },
     ],
   },
-};
+});

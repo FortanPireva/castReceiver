@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack ",
+    "build": "webpack  --env environment=development --mode development",
+    "build-prod": "webpack --env environment=production --mode production",
     "scss": "node-sass src/css -o build"
   },
   "keywords": [],
@@ -20,6 +21,7 @@
     "webpack-cli": "^4.8.0"
   },
   "dependencies": {
+    "dotenv-webpack": "^7.0.3",
     "node-sass": "^6.0.1"
   }
 }
