@@ -67,14 +67,20 @@ class Receiver {
           return data;
         })
         .catch((e) => {
-          this.onPause();
           this.castDebugLogger.debug(
             this.debugTags.ONPLAY,
             " Couldn't play video.Tring one more time " + e
           );
+          this.onPause();
+
           this.broadcast(
             " Couldn't play video.Tring one more time " + e.toString()
           );
+          this.video
+            .play()
+            .catch((e) =>
+              this.castDebugLogger.debug(this.debugTags.ONPLAY, " not working")
+            );
         });
     } else this.vastService.resume();
   }
@@ -96,7 +102,7 @@ class Receiver {
       this.debugTags.BROADCAST,
       Environment.isDevelopment
     );
-    if (!required && !Environment.isDevelopment) return;
+    // if (!required && !Environment.isDevelopment) return;
     this.castDebugLogger.debug(this.debugTags.BROADCAST, message);
     if (this.context)
       this.context.sendCustomMessage(this.NAMESPACE, undefined, message);
@@ -185,6 +191,23 @@ class Receiver {
       this.castDebugLogger.debug("inside mp4", this.videoObject.file);
       this.video.src = this.videoObject.file;
       this.start();
+    } else if (this.videoObject.file.endsWith("mpd")) {
+      //create source and append to video
+      try {
+        let dash = dashjs.MediaPlayer().create();
+        this.castDebugLogger.debug("DASH - playerinitialized", dash);
+        dash.setProtectionData({
+          "com.widevine.alpha": {
+            serverURL:
+              "https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=90FC04",
+          },
+        });
+        dash.initialize(this.video, this.videoObject.file, true);
+
+        this.start();
+      } catch (error) {
+        this.castDebugLogger.debug("DASH", error.toString());
+      }
     } else if (vpReceiver.HLSsupported) {
       this.castDebugLogger.debug("inside hlssupported", this.videoObject.file);
       try {
@@ -215,9 +238,12 @@ class Receiver {
         });
         this.hls.on(Hls.Events.ERROR, (event, data) => {
           this.castDebugLogger.debug("HLS  ERROR", data.details);
+          this.broadcast({ message: "HLS  ERROR", details: data.details });
         });
         this.hls.attachMedia(this.video);
-      } catch (error) {}
+      } catch (error) {
+        this.castDebugLogger.debug("DASH- error", error.toString());
+      }
     }
     this.castDebugLogger.debug("finished attach media");
   }
@@ -247,7 +273,7 @@ class Receiver {
     };
     this.receiverControls.setCastDebugger(this.castDebugLogger);
     this.videoObject.file =
-      "https://vp.gjirafa.net/vps/prod/odgehtyo/encode/vjsmyjhs/hls/master_file.m3u8";
+      "http://blob.gjirafa.com/kviffcz/media/y1qgkx36/packaged/index.mpd";
     this.videoObject.duration = 119;
     this.receiverControls.seekbar.animateSeekbar();
     this.receiverControls.initOverlay({
@@ -326,6 +352,28 @@ class Receiver {
     options.customNamespaces = {};
     options.customNamespaces[this.NAMESPACE] =
       cast.framework.system.MessageType.JSON;
+
+    // const playbackConfig = new cast.framework.PlaybackConfig();
+    // // Customize the license url for playback
+    // playbackConfig.protectionSystem = cast.framework.ContentProtection.WIDEVINE;
+    // playbackConfig.licenseRequestHandler = (requestInfo) => {
+    //   requestInfo.withCredentials = false;
+    // };
+    // // Update playback config licenseUrl according to provided value in load request.
+    // this.playerManager.setMediaPlaybackInfoHandler(
+    //   (loadRequest, playbackConfig) => {
+    //     if (
+    //       loadRequest.media.customData &&
+    //       loadRequest.media.customData.licenseUrl
+    //     ) {
+    //       playbackConfig.licenseUrl = loadRequest.media.customData.licenseUrl;
+    //     }
+    //     return playbackConfig;
+    //   }
+    // );
+    // options.playbackConfig = playbackConfig;
+    // this.castDebugLogger.debug("licenseUrl", playbackConfig.licenseUrl);
+    // Starting cast
     this.context.start(options);
     this.bindMethods();
     this.bindInterceptors();
